@@ -1,0 +1,6 @@
+streamlit>=1.28
+pandas>=2.0
+scikit-learn>=1.2
+synthcity>=0.2.21
+# synthcity depends on PyTorch; install will pull a compatible torch build.
+# If needed, install torch explicitly per your OS/CUDA.
