@@ -19,3 +19,15 @@ A demo Streamlit app that:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+### 2) Install dependencies
+```bash
+pip install -U pip
+pip install -r requirements.txt
+
+### 3) Run the app
+```bash
+streamlit run app.py
+
+Once started, Streamlit will open a local web page (usually http://localhost:8501).
+Use the sidebar to input patient symptoms and view the model’s recommendation.
