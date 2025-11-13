@@ -8,92 +8,233 @@ from sklearn.ensemble import RandomForestClassifier
 Part 1: Synthetic data generation and model training
 """
 
+# @st.cache_resource
+# def load_model():
+#
+#     """
+#     This function will create the seed data, generate synthetic data using synthcity, 
+#     and train the model only ONCE to be used when starting the app.
+#     """
+#
+#     # Create seed data
+#     data = {
+#         'age': [25, 45, 68, 19, 33, 76, 51, 29, 60, 42, 81, 35],
+#         'fever': [1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0],
+#         'cough': [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1],
+#         'chest_pain': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0],
+#         'breathing_difficulty': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0],
+#         'days_sick': [3, 5, 2, 2, 1, 4, 7, 1, 3, 2, 5, 4],
+#         'outcome': [
+#             'self_care', 'see_gp', 'go_to_a&e', 'self_care', 'self_care', 
+#             'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp',
+#             'go_to_a&e', 'see_gp'
+#         ]
+#     }
+#     seed_df = pd.DataFrame(data)
+#
+#     # Generate synthetic data
+#     loader = GenericDataLoader(seed_df, target_column='outcome')
+#     syn_model = Plugins().get("ctgan")
+#     syn_model.fit(loader)
+#     synthetic_data = syn_model.generate(count=1000)
+#     synthetic_df = synthetic_data.dataframe()
+#
+#     # Train Triage Model
+#     X_train = synthetic_df.drop('outcome', axis=1)
+#     y_train = synthetic_df['outcome']
+#
+#     model = RandomForestClassifier(n_estimators=100, random_state=42)
+#     model.fit(X_train, y_train)
+#
+#     print(" Model and Data laoded successfully ")
+#     return model
+
 @st.cache_resource
 def load_model():
-
     """
-    This function will create the seed data, generate synthetic data using synthcity, 
-    and train the model only ONCE to be used when starting the app.
+    This function creates a new, enriched seed data, generates 
+    synthetic data, and trains the model.
     """
-
-    # Create seed data
+    
+    # 1. Create ENRICHED Seed Data
+    # Adding 'has_asthma' and 'pain_severity'
     data = {
-        'age': [25, 45, 68, 19, 33, 76, 51, 29, 60, 42, 81, 35],
-        'fever': [1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0],
-        'cough': [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1],
-        'chest_pain': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0],
-        'breathing_difficulty': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0],
-        'days_sick': [3, 5, 2, 2, 1, 4, 7, 1, 3, 2, 5, 4],
+        # Features
+        'age': [25, 45, 68, 19, 33, 76, 51, 29, 60, 42, 81, 35, 22, 58, 72, 41, 18, 30, 65, 80, 50, 28, 73, 44, 38, 62],
+        'fever': [1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0],
+        'cough': [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+        'chest_pain': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0],
+        'breathing_difficulty': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0],
+        'days_sick': [3, 5, 2, 2, 1, 4, 7, 1, 3, 2, 5, 4, 8, 4, 1, 3, 2, 1, 5, 3, 6, 2, 4, 5, 2, 7],
+        'has_asthma': [0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0],
+        'pain_severity': [2, 0, 7, 1, 0, 8, 0, 0, 6, 1, 9, 0, 4, 5, 3, 2, 1, 6, 4, 9, 0, 2, 7, 0, 5, 1],
+        
+        # Target
         'outcome': [
-            'self_care', 'see_gp', 'go_to_a&e', 'self_care', 'self_care', 
-            'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp',
-            'go_to_a&e', 'see_gp'
+            'self_care', 'see_gp', 'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp', 'self_care',
+            'go_to_a&e', 'see_gp', 'go_to_a&e', 'see_gp', 'see_gp', 'see_gp', 'go_to_a&e', 'self_care',
+            'self_care', 'see_gp', 'go_to_a&e', 'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp',
+            'see_gp', 'see_gp'
         ]
     }
     seed_df = pd.DataFrame(data)
 
-    # Generate synthetic data
-    loader = GenericDataLoader(seed_df, target_column='outcome')
+    # 2. Generate Synthetic Data
+    # We'll generate more data since our seed is richer
+    print("Loading seed data v2 into synthcity DataLoader...")
+    loader = GenericDataLoader(seed_df, target_column="outcome")
+    
+    # Train on more data
     syn_model = Plugins().get("ctgan")
+    print("Fitting synthetic data generator (ctgan) to seed data v2...")
     syn_model.fit(loader)
-    synthetic_data = syn_model.generate(count=1000)
+
+    print(f"Generating 5000 new synthetic patients...")
+    synthetic_data = syn_model.generate(count=5000) # Increased from 1000
     synthetic_df = synthetic_data.dataframe()
 
-    # Train Triage Model
+    # 3. Train Triage Model
+    print("Training triage model on 5000 rows of synthetic data...")
     X_train = synthetic_df.drop('outcome', axis=1)
     y_train = synthetic_df['outcome']
-
+    
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-
-    print(" Model and Data laoded successfully ")
-    return model
+    
+    print("--- Model and Data Loaded Successfully (v2) ---")
+    return model, seed_df.columns.drop('outcome') # Return the model AND the feature names
 
 """
 Part 2: Streamlit App for Triage Prediction
 """
 
-# Load trained model
-model = load_model()
+# # Load trained model
+# # model = load_model()
+#
+# # Set up Titles and description
+# # st.title("Synthetic Triage Prediction App")
+# # st.write(
+# #     "This app predicts a triage outcome based on patient symptoms. "
+# #     "The model was trained on 100% synthetic data generated by `synthcity`, "
+# #     "a package from the Van der Schaar Lab."
+# # )
+# # st.write("---")
+#
+# # Create Input controls
+# # st.sidebar.header("Patient Symptom Input")
+#
+# # age = st.sidebar.slider("What is the patient's age?", 0, 100, 25)
+# # days_sick = st.sidebar.slider("How many days has the patient been sick?", 0, 14, 2)
+# # fever = st.sidebar.selectbox("Does the patient have a fever?", ("No", "Yes"))
+# # cough = st.sidebar.selectbox("Does the patient have a cough?", ("No", "Yes"))
+# # chest_pain = st.sidebar.selectbox("Is the patient experiencing chest pain?", ("No", "Yes"))
+# # breathing_difficulty = st.sidebar.selectbox("Is the patient having breathing difficulty?", ("No", "Yes"))
+#
+# # Convert text to number inputs for the model
+# # fever_int = 1 if fever == "Yes" else 0
+# # cough_int = 1 if cough == "Yes" else 0
+# # chest_pain_int = 1 if chest_pain == "Yes" else 0
+# # breathing_difficulty_int = 1 if breathing_difficulty == "Yes" else 0
+#
+# # Create a DataFrame for the model input
+# # input_data = pd.DataFrame(
+# #     [[age, fever_int, cough_int, chest_pain_int, breathing_difficulty_int, days_sick]],
+# #     columns=['age', 'fever', 'cough', 'chest_pain', 'breathing_difficulty', 'days_sick']
+# # )
+#
+# # Predict Triage Outcome
+# # prediction = model.predict(input_data)[0]
+# # prediction_proba = model.predict_proba(input_data)
+#
+# # Display Prediction
+# # st.subheader("Model Recommendation")
+#
+# # if prediction == 'go_to_a&e':
+# #     st.metric(label="Predicted Outcome", value=prediction, delta="High Urgency", delta_color="off")
+# #     st.error("Recommendation: Seek urgent medical attention.")
+# # elif prediction == 'see_gp':
+# #     st.metric(label="Predicted Outcome", value=prediction, delta="Medium Urgency", delta_color="off")
+# #     st.warning("Recommendation: Contact a GP or local healthcare provider.")
+# # else:
+# #     st.metric(label="Predicted Outcome", value=prediction, delta="Low Urgency", delta_color="inverse")
+# #     st.success("Recommendation: Monitor symptoms and use self-care.")
+#
+# # Display the raw inputs
+# # st.subheader("Patient Data Entered:")
+# # st.dataframe(input_data)
+#
+# # Display confidence scores
+# # st.subheader("Prediction Confidence Scores")
+# # proba_df = pd.DataFrame(prediction_proba, columns=model.classes_)
+# # proba_df_transposed = proba_df.T.rename(columns={0: 'Confidence'})
+# # st.bar_chart(proba_df_transposed)
 
-# Set up Titles and description
-st.title("Synthetic Triage Prediction App")
+
+# Load the trained model (it will be cached after the first run)
+# Note: it now returns the model AND the feature names
+model, feature_names = load_model()
+
+# Set up the title and a description
+st.title("🩺 Synthetic Triage Prediction App (v2)")
 st.write(
     "This app predicts a triage outcome based on patient symptoms. "
-    "The model was trained on 100% synthetic data generated by `synthcity`, "
-    "a package from the Van der Schaar Lab."
+    "The model was trained on **100% synthetic data** generated by `synthcity`, "
+    "from a **seed dataset**."
 )
 st.write("---")
 
-# Create Input controls
-st.sidebar.header("Patient Symptom Input")
+# --- Create the input controls in the sidebar ---
+st.sidebar.header("Enter Patient Symptoms:")
 
+# 1. Age Slider
 age = st.sidebar.slider("What is the patient's age?", 0, 100, 25)
-days_sick = st.sidebar.slider("How many days has the patient been sick?", 0, 14, 2)
+
+# 2. Days Sick Slider
+days_sick = st.sidebar.slider("How many days has the patient been sick?", 0, 14, 3)
+
+# 3. NEW: Pain Severity Slider
+pain_severity = st.sidebar.slider("On a scale of 0-10, what is the pain severity?", 0, 10, 2)
+
+# 4. Yes/No Selectors
 fever = st.sidebar.selectbox("Does the patient have a fever?", ("No", "Yes"))
 cough = st.sidebar.selectbox("Does the patient have a cough?", ("No", "Yes"))
 chest_pain = st.sidebar.selectbox("Is the patient experiencing chest pain?", ("No", "Yes"))
 breathing_difficulty = st.sidebar.selectbox("Is the patient having breathing difficulty?", ("No", "Yes"))
+has_asthma = st.sidebar.selectbox("Does the patient have a history of asthma?", ("No", "Yes"))
 
-# Convert text to number inputs for the model
+
+# --- Part 3: Prediction and Display ---
+
+# 1. Convert text inputs to numbers (1s and 0s)
 fever_int = 1 if fever == "Yes" else 0
 cough_int = 1 if cough == "Yes" else 0
 chest_pain_int = 1 if chest_pain == "Yes" else 0
 breathing_difficulty_int = 1 if breathing_difficulty == "Yes" else 0
+has_asthma_int = 1 if has_asthma == "Yes" else 0
 
-# Create a DataFrame for the model input
-input_data = pd.DataFrame(
-    [[age, fever_int, cough_int, chest_pain_int, breathing_difficulty_int, days_sick]],
-    columns=['age', 'fever', 'cough', 'chest_pain', 'breathing_difficulty', 'days_sick']
-)
+# 2. Create a dictionary of the inputs
+input_dict = {
+    'age': age,
+    'fever': fever_int,
+    'cough': cough_int,
+    'chest_pain': chest_pain_int,
+    'breathing_difficulty': breathing_difficulty_int,
+    'days_sick': days_sick,
+    'has_asthma': has_asthma_int,
+    'pain_severity': pain_severity
+}
 
-# Predict Triage Outcome
+# 3. Create a DataFrame from the inputs
+input_data = pd.DataFrame([input_dict], columns=feature_names)
+
+# 4. Make the prediction and get probabilities
 prediction = model.predict(input_data)[0]
 prediction_proba = model.predict_proba(input_data)
 
-# Display Prediction
+# 5. Display the results
 st.subheader("Model Recommendation")
 
+# Use st.metric for a display
 if prediction == 'go_to_a&e':
     st.metric(label="Predicted Outcome", value=prediction, delta="High Urgency", delta_color="off")
     st.error("Recommendation: Seek urgent medical attention.")
@@ -108,7 +249,7 @@ else:
 st.subheader("Patient Data Entered:")
 st.dataframe(input_data)
 
-# Display confidence scores
+# Display the confidence scores (this is a great addition)
 st.subheader("Prediction Confidence Scores")
 proba_df = pd.DataFrame(prediction_proba, columns=model.classes_)
 proba_df_transposed = proba_df.T.rename(columns={0: 'Confidence'})
