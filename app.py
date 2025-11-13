@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 from synthcity.plugins import Plugins
+from synthcity.metrics.eval import Metrics
 from synthcity.plugins.core.dataloader import GenericDataLoader
 from sklearn.ensemble import RandomForestClassifier
+import shap
+import matplotlib.pyplot as plt
 
 """
 Part 1: Synthetic data generation and model training
@@ -203,7 +206,9 @@ breathing_difficulty = st.sidebar.selectbox("Is the patient having breathing dif
 has_asthma = st.sidebar.selectbox("Does the patient have a history of asthma?", ("No", "Yes"))
 
 
-# --- Part 3: Prediction and Display ---
+'''
+Part 3: Prediction and Display
+'''
 
 # 1. Convert text inputs to numbers (1s and 0s)
 fever_int = 1 if fever == "Yes" else 0
@@ -254,3 +259,154 @@ st.subheader("Prediction Confidence Scores")
 proba_df = pd.DataFrame(prediction_proba, columns=model.classes_)
 proba_df_transposed = proba_df.T.rename(columns={0: 'Confidence'})
 st.bar_chart(proba_df_transposed)
+
+'''
+Part 4: Explainable AI (SHAP) 
+'''
+
+st.write("---")
+st.subheader("🤖 Explainability (Why did the model say that?)")
+
+if st.checkbox("Show detailed explanation"):
+    with st.spinner("Calculating feature importance..."):
+        
+        # 1. Create a TreeExplainer
+        explainer = shap.TreeExplainer(model)
+        
+        # 2. Calculate SHAP values
+        shap_values = explainer.shap_values(input_data)
+        
+        # 3. Find the index of the predicted class
+        prediction_index = list(model.classes_).index(prediction)
+        
+        # 4. Extract the values safely (Handling List vs. Array formats)
+        if isinstance(shap_values, list):
+            # Old SHAP behavior: List of arrays [Class 0, Class 1, Class 2]
+            # We pick the array for our class (prediction_index), then the 0th row (our patient)
+            shap_val_for_prediction = shap_values[prediction_index][0]
+        else:
+            # New SHAP behavior: Single 3D Array (Samples, Features, Classes)
+            # We pick Sample 0, All Features (:), and our specific Class (prediction_index)
+            # Note: Sometimes shape is just (Samples, Features) if binary.
+            if len(shap_values.shape) == 3:
+                shap_val_for_prediction = shap_values[0, :, prediction_index]
+            else:
+                # Fallback for binary cases where it might return just the positive class
+                shap_val_for_prediction = shap_values[0]
+        
+        # 5. Create DataFrame for plotting
+        explanation_df = pd.DataFrame({
+            'Feature': feature_names,
+            'Contribution': shap_val_for_prediction
+        }).sort_values(by='Contribution', ascending=True)
+        
+        # 6. Plot
+        fig, ax = plt.subplots(figsize=(8, 5))
+        
+        # Red = Pushing towards this outcome, Blue = Pushing away
+        colors = ['#ff4b4b' if x > 0 else '#1f77b4' for x in explanation_df['Contribution']]
+        
+        ax.barh(explanation_df['Feature'], explanation_df['Contribution'], color=colors)
+        ax.set_xlabel(f"Contribution to '{prediction}' Prediction")
+        ax.set_title(f"Which symptoms pushed the result towards '{prediction}'?")
+        ax.axvline(x=0, color='black', linestyle='--', linewidth=0.8)
+        
+        st.pyplot(fig)
+        
+        st.info(
+            """
+            **How to read this graph:**
+            * **Red Bars (Right):** These symptoms **increased** the likelihood of this outcome.
+            * **Blue Bars (Left):** These symptoms **decreased** the likelihood.
+            """
+        )
+
+'''
+Part 5: Research Evaluation (The "Proof")
+'''
+
+st.write("---")
+st.header("📊 Research Evaluation Report")
+st.write(
+    "This section generates a quality report comparing the **Seed Data (Real)** "
+    "vs. the **Synthetic Data (Fake)**. This mimics the evaluation process used "
+    "in the Van der Schaar Lab's publications."
+)
+
+if st.button("Run Data Quality Evaluation"):
+    
+    # We need to access the seed_df and synthetic_df. 
+    # Since we didn't return synthetic_df in the previous step, 
+    # we need to regenerate it or cache it. 
+    # FOR SIMPLICITY: We will quickly regenerate the comparison here.
+    
+    with st.spinner("Running statistical tests (Jensen-Shannon, Chi-Square, etc.)..."):
+        
+        # 1. Re-create the seed loader (The "Real" Data)
+        # (In a production app, you would pass this down from load_model)
+        # We use the exact same data dictionary from load_model
+        # 1. Re-create the seed loader (The "Real" Data)
+        data_raw = {
+            'age': [25, 45, 68, 19, 33, 76, 51, 29, 60, 42, 81, 35, 22, 58, 72, 41, 18, 30, 65, 80, 50, 28, 73, 44, 38, 62],
+            'fever': [1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0],
+            'cough': [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0], 
+            'chest_pain': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0],
+            'breathing_difficulty': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0],
+            'days_sick': [3, 5, 2, 2, 1, 4, 7, 1, 3, 2, 5, 4, 8, 4, 1, 3, 2, 1, 5, 3, 6, 2, 4, 5, 2, 7],
+            'has_asthma': [0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0],
+            'pain_severity': [2, 0, 7, 1, 0, 8, 0, 0, 6, 1, 9, 0, 4, 5, 3, 2, 1, 6, 4, 9, 0, 2, 7, 0, 5, 1],
+            'outcome': [
+                'self_care', 'see_gp', 'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp', 'self_care',
+                'go_to_a&e', 'see_gp', 'go_to_a&e', 'see_gp', 'see_gp', 'see_gp', 'go_to_a&e', 'self_care',
+                'self_care', 'see_gp', 'go_to_a&e', 'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp',
+                'see_gp', 'see_gp'
+            ]
+        }
+        seed_df = pd.DataFrame(data_raw)
+        loader_real = GenericDataLoader(seed_df, target_column="outcome")
+
+        # 2. Generate a small fresh batch of synthetic data for comparison
+        # We reload the plugin briefly just to generate the comparison set
+        syn_model = Plugins().get("ctgan")
+        syn_model.fit(loader_real)
+        syn_data = syn_model.generate(count=len(seed_df)) # Generate same size for fair comparison
+        loader_fake = GenericDataLoader(syn_data.dataframe(), target_column="outcome")
+
+        # 3. Run the Metrics
+        # We select specific metrics that work well on small data
+        # 'jensenshannon_distance': Lower is better (0 = identical distributions)
+        # 'chi_squared_test': High p-value means we can't distinguish them (Good)
+        # 'inverse_kl_divergence': Higher is better
+        
+        evaluation = Metrics.evaluate(
+            loader_real,
+            loader_fake,
+            metrics={
+                'stats': ['jensenshannon_distance', 'chi_squared_test', 'inverse_kl_divergence']
+            }
+        )
+    
+    # --- Display Results ---
+    
+    st.subheader("1. Statistical Similarity")
+    st.write("How closely does the synthetic data resemble the real data distributions?")
+    
+    st.table(evaluation)
+    
+    st.info(
+        """
+        **Interpretation:**
+        * **Jensen-Shannon Distance:** Measures the distance between probability distributions. Closer to 0 is better.
+        * **Inverse KL Divergence:** Measures information loss. Higher is better.
+        """
+    )
+
+    # --- Visual Comparison ---
+    st.subheader("2. Visual Distribution Check")
+    st.write("Comparing the 'Age' distribution of Real (Blue) vs. Synthetic (Orange) patients.")
+    
+    fig, ax = plt.subplots()
+    ax.hist(seed_df['age'], alpha=0.5, label='Real (Seed)', bins=10)
+    ax.hist(syn_data.dataframe()['age'], alpha=0.5, label='Synthetic', bins=10)
+    ax.legend()
+    st.pyplot(fig)
