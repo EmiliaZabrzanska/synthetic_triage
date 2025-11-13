@@ -11,171 +11,51 @@ import matplotlib.pyplot as plt
 Part 1: Synthetic data generation and model training
 """
 
-# @st.cache_resource
-# def load_model():
-#
-#     """
-#     This function will create the seed data, generate synthetic data using synthcity, 
-#     and train the model only ONCE to be used when starting the app.
-#     """
-#
-#     # Create seed data
-#     data = {
-#         'age': [25, 45, 68, 19, 33, 76, 51, 29, 60, 42, 81, 35],
-#         'fever': [1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0],
-#         'cough': [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1],
-#         'chest_pain': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0],
-#         'breathing_difficulty': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0],
-#         'days_sick': [3, 5, 2, 2, 1, 4, 7, 1, 3, 2, 5, 4],
-#         'outcome': [
-#             'self_care', 'see_gp', 'go_to_a&e', 'self_care', 'self_care', 
-#             'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp',
-#             'go_to_a&e', 'see_gp'
-#         ]
-#     }
-#     seed_df = pd.DataFrame(data)
-#
-#     # Generate synthetic data
-#     loader = GenericDataLoader(seed_df, target_column='outcome')
-#     syn_model = Plugins().get("ctgan")
-#     syn_model.fit(loader)
-#     synthetic_data = syn_model.generate(count=1000)
-#     synthetic_df = synthetic_data.dataframe()
-#
-#     # Train Triage Model
-#     X_train = synthetic_df.drop('outcome', axis=1)
-#     y_train = synthetic_df['outcome']
-#
-#     model = RandomForestClassifier(n_estimators=100, random_state=42)
-#     model.fit(X_train, y_train)
-#
-#     print(" Model and Data laoded successfully ")
-#     return model
-
 @st.cache_resource
 def load_model():
     """
-    This function creates a new, enriched seed data, generates 
-    synthetic data, and trains the model.
+    Loads the seed data from CSV, generates synthetic data, 
+    and trains the model. Returns all artifacts needed for the app.
     """
-    
-    # 1. Create ENRICHED Seed Data
-    # Adding 'has_asthma' and 'pain_severity'
-    data = {
-        # Features
-        'age': [25, 45, 68, 19, 33, 76, 51, 29, 60, 42, 81, 35, 22, 58, 72, 41, 18, 30, 65, 80, 50, 28, 73, 44, 38, 62],
-        'fever': [1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0],
-        'cough': [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
-        'chest_pain': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0],
-        'breathing_difficulty': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0],
-        'days_sick': [3, 5, 2, 2, 1, 4, 7, 1, 3, 2, 5, 4, 8, 4, 1, 3, 2, 1, 5, 3, 6, 2, 4, 5, 2, 7],
-        'has_asthma': [0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0],
-        'pain_severity': [2, 0, 7, 1, 0, 8, 0, 0, 6, 1, 9, 0, 4, 5, 3, 2, 1, 6, 4, 9, 0, 2, 7, 0, 5, 1],
-        
-        # Target
-        'outcome': [
-            'self_care', 'see_gp', 'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp', 'self_care',
-            'go_to_a&e', 'see_gp', 'go_to_a&e', 'see_gp', 'see_gp', 'see_gp', 'go_to_a&e', 'self_care',
-            'self_care', 'see_gp', 'go_to_a&e', 'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp',
-            'see_gp', 'see_gp'
-        ]
-    }
-    seed_df = pd.DataFrame(data)
+    # 1. Load Seed Data from CSV
+    try:
+        seed_df = pd.read_csv("seed_data.csv")
+        print("Loaded seed data from CSV successfully.")
+    except FileNotFoundError:
+        st.error("Could not find 'seed_data.csv'. Please ensure it is in the same folder as app.py")
+        st.stop()
 
     # 2. Generate Synthetic Data
-    # We'll generate more data since our seed is richer
-    print("Loading seed data v2 into synthcity DataLoader...")
+    # We pass the seed_df directly to the loader
     loader = GenericDataLoader(seed_df, target_column="outcome")
     
-    # Train on more data
     syn_model = Plugins().get("ctgan")
-    print("Fitting synthetic data generator (ctgan) to seed data v2...")
+    print("Fitting synthetic data generator...")
     syn_model.fit(loader)
 
-    print(f"Generating 5000 new synthetic patients...")
-    synthetic_data = syn_model.generate(count=5000) # Increased from 1000
+    print("Generating 10000 new synthetic patients...")
+    synthetic_data = syn_model.generate(count=10000)
     synthetic_df = synthetic_data.dataframe()
 
     # 3. Train Triage Model
-    print("Training triage model on 5000 rows of synthetic data...")
+    print("Training triage model...")
     X_train = synthetic_df.drop('outcome', axis=1)
     y_train = synthetic_df['outcome']
     
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model = RandomForestClassifier(n_estimators=200, random_state=42)
     model.fit(X_train, y_train)
     
-    print("--- Model and Data Loaded Successfully (v2) ---")
-    return model, seed_df.columns.drop('outcome') # Return the model AND the feature names
+    # 4. Return EVERYTHING we need
+    # We return seed_df and synthetic_df so we can use them in Part 5
+    return model, seed_df.columns.drop('outcome'), seed_df, synthetic_df
 
 """
 Part 2: Streamlit App for Triage Prediction
 """
 
-# # Load trained model
-# # model = load_model()
-#
-# # Set up Titles and description
-# # st.title("Synthetic Triage Prediction App")
-# # st.write(
-# #     "This app predicts a triage outcome based on patient symptoms. "
-# #     "The model was trained on 100% synthetic data generated by `synthcity`, "
-# #     "a package from the Van der Schaar Lab."
-# # )
-# # st.write("---")
-#
-# # Create Input controls
-# # st.sidebar.header("Patient Symptom Input")
-#
-# # age = st.sidebar.slider("What is the patient's age?", 0, 100, 25)
-# # days_sick = st.sidebar.slider("How many days has the patient been sick?", 0, 14, 2)
-# # fever = st.sidebar.selectbox("Does the patient have a fever?", ("No", "Yes"))
-# # cough = st.sidebar.selectbox("Does the patient have a cough?", ("No", "Yes"))
-# # chest_pain = st.sidebar.selectbox("Is the patient experiencing chest pain?", ("No", "Yes"))
-# # breathing_difficulty = st.sidebar.selectbox("Is the patient having breathing difficulty?", ("No", "Yes"))
-#
-# # Convert text to number inputs for the model
-# # fever_int = 1 if fever == "Yes" else 0
-# # cough_int = 1 if cough == "Yes" else 0
-# # chest_pain_int = 1 if chest_pain == "Yes" else 0
-# # breathing_difficulty_int = 1 if breathing_difficulty == "Yes" else 0
-#
-# # Create a DataFrame for the model input
-# # input_data = pd.DataFrame(
-# #     [[age, fever_int, cough_int, chest_pain_int, breathing_difficulty_int, days_sick]],
-# #     columns=['age', 'fever', 'cough', 'chest_pain', 'breathing_difficulty', 'days_sick']
-# # )
-#
-# # Predict Triage Outcome
-# # prediction = model.predict(input_data)[0]
-# # prediction_proba = model.predict_proba(input_data)
-#
-# # Display Prediction
-# # st.subheader("Model Recommendation")
-#
-# # if prediction == 'go_to_a&e':
-# #     st.metric(label="Predicted Outcome", value=prediction, delta="High Urgency", delta_color="off")
-# #     st.error("Recommendation: Seek urgent medical attention.")
-# # elif prediction == 'see_gp':
-# #     st.metric(label="Predicted Outcome", value=prediction, delta="Medium Urgency", delta_color="off")
-# #     st.warning("Recommendation: Contact a GP or local healthcare provider.")
-# # else:
-# #     st.metric(label="Predicted Outcome", value=prediction, delta="Low Urgency", delta_color="inverse")
-# #     st.success("Recommendation: Monitor symptoms and use self-care.")
-#
-# # Display the raw inputs
-# # st.subheader("Patient Data Entered:")
-# # st.dataframe(input_data)
-#
-# # Display confidence scores
-# # st.subheader("Prediction Confidence Scores")
-# # proba_df = pd.DataFrame(prediction_proba, columns=model.classes_)
-# # proba_df_transposed = proba_df.T.rename(columns={0: 'Confidence'})
-# # st.bar_chart(proba_df_transposed)
-
-
 # Load the trained model (it will be cached after the first run)
 # Note: it now returns the model AND the feature names
-model, feature_names = load_model()
+model, feature_names, seed_df, synthetic_df = load_model()
 
 # Set up the title and a description
 st.title("🩺 Synthetic Triage Prediction App (v2)")
@@ -324,60 +204,23 @@ if st.checkbox("Show detailed explanation"):
 '''
 Part 5: Research Evaluation (The "Proof")
 '''
-
 st.write("---")
 st.header("📊 Research Evaluation Report")
 st.write(
-    "This section generates a quality report comparing the **Seed Data (Real)** "
-    "vs. the **Synthetic Data (Fake)**. This mimics the evaluation process used "
-    "in the Van der Schaar Lab's publications."
+    "This section compares the **Real Seed Data** (loaded from `seed_data.csv`) "
+    "with the **Synthetic Data** generated by `synthcity`."
 )
 
 if st.button("Run Data Quality Evaluation"):
     
-    # We need to access the seed_df and synthetic_df. 
-    # Since we didn't return synthetic_df in the previous step, 
-    # we need to regenerate it or cache it. 
-    # FOR SIMPLICITY: We will quickly regenerate the comparison here.
-    
-    with st.spinner("Running statistical tests (Jensen-Shannon, Chi-Square, etc.)..."):
+    with st.spinner("Running evaluation metrics..."):
         
-        # 1. Re-create the seed loader (The "Real" Data)
-        # (In a production app, you would pass this down from load_model)
-        # We use the exact same data dictionary from load_model
-        # 1. Re-create the seed loader (The "Real" Data)
-        data_raw = {
-            'age': [25, 45, 68, 19, 33, 76, 51, 29, 60, 42, 81, 35, 22, 58, 72, 41, 18, 30, 65, 80, 50, 28, 73, 44, 38, 62],
-            'fever': [1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0],
-            'cough': [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0], 
-            'chest_pain': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0],
-            'breathing_difficulty': [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0],
-            'days_sick': [3, 5, 2, 2, 1, 4, 7, 1, 3, 2, 5, 4, 8, 4, 1, 3, 2, 1, 5, 3, 6, 2, 4, 5, 2, 7],
-            'has_asthma': [0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0],
-            'pain_severity': [2, 0, 7, 1, 0, 8, 0, 0, 6, 1, 9, 0, 4, 5, 3, 2, 1, 6, 4, 9, 0, 2, 7, 0, 5, 1],
-            'outcome': [
-                'self_care', 'see_gp', 'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp', 'self_care',
-                'go_to_a&e', 'see_gp', 'go_to_a&e', 'see_gp', 'see_gp', 'see_gp', 'go_to_a&e', 'self_care',
-                'self_care', 'see_gp', 'go_to_a&e', 'go_to_a&e', 'see_gp', 'self_care', 'go_to_a&e', 'see_gp',
-                'see_gp', 'see_gp'
-            ]
-        }
-        seed_df = pd.DataFrame(data_raw)
+        # 1. Wrap our PRE-LOADED dataframes into DataLoaders
+        # We don't need to re-generate anything!
         loader_real = GenericDataLoader(seed_df, target_column="outcome")
+        loader_fake = GenericDataLoader(synthetic_df, target_column="outcome")
 
-        # 2. Generate a small fresh batch of synthetic data for comparison
-        # We reload the plugin briefly just to generate the comparison set
-        syn_model = Plugins().get("ctgan")
-        syn_model.fit(loader_real)
-        syn_data = syn_model.generate(count=len(seed_df)) # Generate same size for fair comparison
-        loader_fake = GenericDataLoader(syn_data.dataframe(), target_column="outcome")
-
-        # 3. Run the Metrics
-        # We select specific metrics that work well on small data
-        # 'jensenshannon_distance': Lower is better (0 = identical distributions)
-        # 'chi_squared_test': High p-value means we can't distinguish them (Good)
-        # 'inverse_kl_divergence': Higher is better
-        
+        # 2. Run the Metrics
         evaluation = Metrics.evaluate(
             loader_real,
             loader_fake,
@@ -387,26 +230,24 @@ if st.button("Run Data Quality Evaluation"):
         )
     
     # --- Display Results ---
-    
     st.subheader("1. Statistical Similarity")
-    st.write("How closely does the synthetic data resemble the real data distributions?")
-    
     st.table(evaluation)
     
     st.info(
         """
         **Interpretation:**
-        * **Jensen-Shannon Distance:** Measures the distance between probability distributions. Closer to 0 is better.
-        * **Inverse KL Divergence:** Measures information loss. Higher is better.
+        * **Jensen-Shannon Distance:** Measures difference. Closer to 0 is better.
+        * **Chi-Squared:** P-value > 0.05 usually indicates good fit (hard to achieve with small data).
         """
     )
 
     # --- Visual Comparison ---
     st.subheader("2. Visual Distribution Check")
-    st.write("Comparing the 'Age' distribution of Real (Blue) vs. Synthetic (Orange) patients.")
+    st.write("Comparing 'Age' distribution: Real (Blue) vs. Synthetic (Orange)")
     
     fig, ax = plt.subplots()
-    ax.hist(seed_df['age'], alpha=0.5, label='Real (Seed)', bins=10)
-    ax.hist(syn_data.dataframe()['age'], alpha=0.5, label='Synthetic', bins=10)
+    # We use density=True to compare shapes even though sample sizes are different (26 vs 5000)
+    ax.hist(seed_df['age'], density=True, alpha=0.5, label='Real (Seed)', bins=10)
+    ax.hist(synthetic_df['age'], density=True, alpha=0.5, label='Synthetic', bins=10)
     ax.legend()
     st.pyplot(fig)
