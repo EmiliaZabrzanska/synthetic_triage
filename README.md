@@ -5,8 +5,6 @@ A demo Streamlit app that:
 2) trains a **RandomForestClassifier** on the synthetic data, and
 3) serves an interactive UI to predict a triage recommendation.
 
-> ⚠️ **Educational demo only — not medical advice.** Do not use for real clinical decisions.
-
 ## Features
 - One-time model build at app startup (`@st.cache_resource`)
 - Clean UI for inputs (age, symptoms, days sick)
